@@ -45,12 +45,17 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "PrimitiveUniformShaderParametersBuilder.h"
 
+static bool ShouldRunTressFXSimulationInWorld(EWorldType::Type WorldType)
+{
+	return WorldType != EWorldType::None && WorldType != EWorldType::Editor;
+}
+
 #if WITH_EDITOR
-static int32 GTressFXPreviewGuideLineFallback = 1;
+static int32 GTressFXPreviewGuideLineFallback = 0;
 static FAutoConsoleVariableRef CVarTressFXPreviewGuideLineFallback(
 	TEXT("r.TressFX.PreviewGuideLineFallback"),
 	GTressFXPreviewGuideLineFallback,
-	TEXT("Draw TressFX guide strands as CPU debug lines in editor preview viewports."));
+	TEXT("Draw TressFX guide strands as CPU debug lines in asset preview viewports."));
 
 static int32 GTressFXPreviewGuideLineMaxStrands = 512;
 static FAutoConsoleVariableRef CVarTressFXPreviewGuideLineMaxStrands(
@@ -160,10 +165,9 @@ public:
 
 	virtual void OnTransformChanged(FRHICommandListBase& RHICmdList) override
 	{
-		//const FTransform HairLocalToWorld = FTransform(GetLocalToWorld());
-		//for (FTressFXGroupInstance* Instance : TressFXGroupInstances)
+		if (TressFXGroupInstance)
 		{
-			//TressFXGroupInstance->LocalToWorld = HairLocalToWorld;
+			TressFXGroupInstance->LocalToWorld = FTransform(GetLocalToWorld());
 		}
 	}
 
@@ -223,7 +227,7 @@ public:
 			if (IsShown(View) && (VisibilityMap & (1 << ViewIndex)))
 			{
 #if WITH_EDITOR
-				if (GTressFXPreviewGuideLineFallback)
+				if (GTressFXPreviewGuideLineFallback && Instance->WorldType == EWorldType::EditorPreview)
 				{
 					DrawGuideLineFallback(ViewIndex, Collector, Instance);
 				}
@@ -714,6 +718,7 @@ FTressFXGroupInstance* UTressFXComponent::CreateTressFXGroupInstance()
 		TressFXGroupInstance->Debug.GroupCount = 1;
 		TressFXGroupInstance->ParentComponent = GetAttachParent();
 		TressFXGroupInstance->SkeletalComponent = SkeletalMeshComponent;
+		TressFXGroupInstance->LocalToWorld = GetComponentTransform();
 		TressFXGroupInstance->WorldName = WorldName;
 		TressFXGroupInstance->Debug.bEnableVisualizeTangents = TressFXAsset->TressFXGroupsRendering.EnableVisualizeTangents;
 
@@ -800,7 +805,7 @@ FTressFXGroupInstance* UTressFXComponent::CreateTressFXGroupInstance()
 
 		if (GroupData.HasValidData() && (bDynamicResources || bIsStrandsEnabled))
 		{
-			TressFXGroupInstance->Guides.bIsSimulationEnable = EnableSimulation;// TressFXSimulationSettings->EnableSimulation;
+			TressFXGroupInstance->Guides.bIsSimulationEnable = EnableSimulation && ShouldRunTressFXSimulationInWorld(WorldType);// TressFXSimulationSettings->EnableSimulation;
 
 			TressFXGroupInstance->TFXData = &GroupData.TFXData;
 
@@ -840,6 +845,8 @@ FTressFXGroupInstance* UTressFXComponent::CreateTressFXGroupInstance()
 			TressFXGroupInstance->TressFXGroupPublicData->SetContinuousLOD(GroupLOD.EnableContinuousLOD);
 			TressFXGroupInstance->TressFXGroupPublicData->VFInput.Strands.NumVerticesPerStrand = GroupData.TFXData.NumVerticesPerStrand;
 			TressFXGroupInstance->TressFXGroupPublicData->VFInput.Strands.MaxLength = GroupData.TFXData.MaxRestLength;
+			TressFXGroupInstance->TressFXGroupPublicData->CurrentActiveStrandsCount = GroupData.TFXData.NumStrandsToRender;
+			TressFXGroupInstance->TressFXGroupPublicData->ContinuousLodRadiusScale = 1.0f;
 
 		}
 
@@ -1048,10 +1055,16 @@ void UTressFXComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	if (TressFXGroupInstance)
+	{
+		const EWorldType::Type WorldType = GetWorldType();
+		TressFXGroupInstance->LocalToWorld = GetComponentTransform();
+		TressFXGroupInstance->Guides.bIsSimulationEnable = EnableSimulation && ShouldRunTressFXSimulationInWorld(WorldType);
+		TressFXGroupInstance->TimeStep = TressFXGroupInstance->Guides.bIsSimulationEnable ? DeltaTime : 0.0f;
+	}
+
 	if (TressFXGroupInstance && TressFXGroupInstance->SkeletalComponent)
 	{
-		TressFXGroupInstance->TimeStep = DeltaTime;// GetWorld()->GetTimeSeconds() - GetLastRenderTime();
-
 		if (TressFXAsset->AnimationSimulationSettingsMap.Num())
 		{
 			LastAnimAsset = CurrentAnimAsset;

@@ -615,12 +615,27 @@ static void RunTressFXLODSelection(EWorldType::Type WorldType, const TArray<cons
 				const float LODBias = 0;// Instance->Strands.Modifier.LODBias;
 				
 				Instance->TressFXGroupPublicData->SetCurrentLODScreenSize(ScreenSize);
-				
-				Instance->TressFXGroupPublicData->CurrentActiveStrandsCount = Instance->TFXData->NumStrandsToRender* FMath::Min(ScreenSize / 4.f, 1.f);
-				if (EWorldType::EditorPreview == Instance->WorldType)
-					Instance->TressFXGroupPublicData->CurrentActiveStrandsCount = Instance->TFXData->NumStrandsToRender * 0.5f;
-				Instance->TressFXGroupPublicData->ContinuousLodRadiusScale = Instance->TFXData->NumStrandsToRender /
-					float(Instance->TressFXGroupPublicData->CurrentActiveStrandsCount);
+
+				const uint32 TotalStrands = Instance->TFXData->NumStrandsToRender;
+				if (TotalStrands > 0)
+				{
+					float ActiveFraction = FMath::Clamp(ScreenSize / 4.0f, 0.25f, 1.0f);
+					if (EWorldType::EditorPreview == Instance->WorldType)
+					{
+						ActiveFraction = FMath::Max(ActiveFraction, 0.5f);
+					}
+
+					const uint32 ActiveStrands = FMath::Clamp(
+						static_cast<uint32>(FMath::RoundToInt(static_cast<float>(TotalStrands) * ActiveFraction)),
+						1u,
+						TotalStrands);
+
+					Instance->TressFXGroupPublicData->CurrentActiveStrandsCount = ActiveStrands;
+					Instance->TressFXGroupPublicData->ContinuousLodRadiusScale = FMath::Clamp(
+						static_cast<float>(TotalStrands) / static_cast<float>(ActiveStrands),
+						1.0f,
+						4.0f);
+				}
 			}
 		}
 

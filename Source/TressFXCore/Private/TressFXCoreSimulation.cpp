@@ -942,11 +942,7 @@ void ComputeTressFXSimulation(
 		Instance->Guides.GuidesDeformedResource->GetBuffer(FTressFXGuidesDeformedResource::Current),
 		ERDGImportedBufferFlagsTFX::CreateViews);
 
-	FMatrix ComponentToWorldTransform44d;
-	ComponentToWorldTransform44d.SetIdentity();
-
-	if (Instance->ParentComponent)
-		ComponentToWorldTransform44d = Instance->ParentComponent->GetComponentTransform().ToMatrixWithScale();
+	const FMatrix ComponentToWorldTransform44d = Instance->LocalToWorld.ToMatrixWithScale();
 
 	FMatrix44f ComponentToWorldTransform;
 	for (int32 i = 0; i < 4; ++i)

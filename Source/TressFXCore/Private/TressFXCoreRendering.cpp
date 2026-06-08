@@ -701,20 +701,21 @@ FTressFXGroupPublicData::FVertexFactoryInput ComputeTressFXVertexInputData(const
 		OutVFInput.Strands.RootUVBuffer = Instance->Guides.GuidesRestResource->GuidesRootUVBuffer.SRV;
 		OutVFInput.Strands.StrandsIDBuffer = Instance->Strands.StrandsResource->StrandsIDBuffer.SRV;
 
-		const uint32 LODVertexCount = Instance->TressFXGroupPublicData->CurrentActiveStrandsCount * Instance->TFXData->NumVerticesPerStrand;
-		
+		const uint32 TotalStrands = FMath::Max(1u, Instance->TFXData->NumStrandsToRender);
+		const uint32 ActiveStrands = FMath::Clamp(Instance->TressFXGroupPublicData->CurrentActiveStrandsCount, 1u, TotalStrands);
+		const float LodRadiusScale = FMath::Clamp(Instance->TressFXGroupPublicData->ContinuousLodRadiusScale, 1.0f, 4.0f);
+		const uint32 LODVertexCount = ActiveStrands * Instance->TFXData->NumVerticesPerStrand;
 
 		OutVFInput.Strands.VertexCount = LODVertexCount;
 		OutVFInput.Strands.NumVerticesPerStrand = Instance->TFXData->NumVerticesPerStrand;
 		OutVFInput.Strands.HairRadius = ScaleAndClipDesc.MaxOutHairRadius;
 		OutVFInput.Strands.MaxLength = 1.f;
-		OutVFInput.Strands.HairDensity = FMath::Max(1.f,Instance->TressFXGroupPublicData->ContinuousLodRadiusScale);
-		OutVFInput.Strands.TranslucencyDensity = Instance->TranslucencyDensity * Instance->TressFXGroupPublicData->ContinuousLodRadiusScale;
+		OutVFInput.Strands.HairDensity = 1.0f;
+		OutVFInput.Strands.TranslucencyDensity = FMath::Clamp(Instance->TranslucencyDensity * 0.45f, 0.15f, 0.65f);
 		OutVFInput.Strands.bUseStableRasterization = true;
-		OutVFInput.Strands.bScatterSceneLighting = true;
+		OutVFInput.Strands.bScatterSceneLighting = false;
 
 	}
 
 	return OutVFInput;
 }
-
