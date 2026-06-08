@@ -1,6 +1,6 @@
 bl_info = {
     "name": "TressFX Exporter",
-    "author": "OpenAI Codex",
+    "author": "OpenAI Codex & YuQing-Ding",
     "version": (0, 1, 0),
     "blender": (3, 3, 0),
     "location": "File > Export > TressFX (.tfx)",
